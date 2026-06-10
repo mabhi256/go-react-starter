@@ -1,0 +1,63 @@
+# Dev overlay - adds Mailhog and grafana-otel-lgtm. Migrations run automatically
+# inside the API on startup.
+#
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  api:
+    environment:
+      APP_ENV: dev
+      DB_DSN: postgres://xyzmed:xyzmed@postgres:5432/xyzmed?sslmode=disable
+      REDIS_ADDR: valkey:6379
+      MAIL_SMTP_HOST: mailhog
+      MAIL_SMTP_PORT: "1025"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_SERVICE_NAME: xyzmed-api
+      PYROSCOPE_URL: http://lgtm:4040
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+      lgtm:
+        condition: service_started
+
+  worker:
+    environment:
+      APP_ENV: dev
+      DB_DSN: postgres://xyzmed:xyzmed@postgres:5432/xyzmed?sslmode=disable
+      REDIS_ADDR: valkey:6379
+      OTEL_SERVICE_NAME: xyzmed-worker
+      PYROSCOPE_URL: http://lgtm:4040
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"   # Web UI
+      - "1025:1025"   # SMTP
+
+  # All-in-one observability: Loki + Grafana + Tempo + Mimir
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "3001:3000"   # Grafana UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./deploy/grafana/provisioning/dashboards/xyzmed.yml:/otel-lgtm/grafana/conf/provisioning/dashboards/xyzmed.yml
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards/xyzmed
+      - ./deploy/grafana/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./deploy/grafana/provisioning/datasources/lgtm-override.yml:/otel-lgtm/grafana/conf/provisioning/datasources/lgtm-override.yml
+    depends_on:
+      cadvisor:
+        condition: service_started
+
+  # Container resource metrics (CPU, RAM, network) scraped by Prometheus
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro

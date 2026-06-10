@@ -1,0 +1,26 @@
+# env / secrets
+.env
+.env.local
+*.pem
+
+# go
+/backend/bin/
+/backend/tmp/
+*.test
+*.out
+
+# node / bun
+node_modules/
+.output/
+.tanstack/
+dist/
+.vite/
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+/backend/api.exe
+backend/worker.exe
+/.claude/skills/impeccable

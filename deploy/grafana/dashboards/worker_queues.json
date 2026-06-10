@@ -1,0 +1,232 @@
+{
+  "title": "XYZMed - Worker Queues",
+  "uid": "xyzmed-worker-queues",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "15s",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "refresh": 1,
+        "hide": 2
+      },
+      {
+        "name": "logdatasource",
+        "label": "Loki",
+        "type": "datasource",
+        "query": "loki",
+        "refresh": 1,
+        "hide": 2
+      },
+      {
+        "name": "queue",
+        "label": "Queue",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(asynq_queue_depth, queue)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "sort": 1,
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "DLQ (Archived)",
+      "description": "Tasks that exhausted all retries. Non-zero means manual intervention is needed.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(asynq_queue_depth{queue=~\"$queue\", state=\"archived\"}) or vector(0)",
+          "legendFormat": "archived"
+        }
+      ],
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "0 - OK", "color": "green" } } }
+          ]
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Active (Processing)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(asynq_queue_depth{queue=~\"$queue\", state=\"active\"}) or vector(0)",
+          "legendFormat": "active"
+        }
+      ],
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "blue", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Retry Queue",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(asynq_queue_depth{queue=~\"$queue\", state=\"retry\"}) or vector(0)",
+          "legendFormat": "retry"
+        }
+      ],
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Queue Depth by State",
+      "description": "Watch archived drain to 0 after requeue. Pending spikes then clears as the worker catches up.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "asynq_queue_depth{queue=~\"$queue\", state=\"pending\"}",
+          "legendFormat": "{{queue}} / pending"
+        },
+        {
+          "refId": "B",
+          "expr": "asynq_queue_depth{queue=~\"$queue\", state=\"active\"}",
+          "legendFormat": "{{queue}} / active"
+        },
+        {
+          "refId": "C",
+          "expr": "asynq_queue_depth{queue=~\"$queue\", state=\"retry\"}",
+          "legendFormat": "{{queue}} / retry"
+        },
+        {
+          "refId": "D",
+          "expr": "asynq_queue_depth{queue=~\"$queue\", state=\"archived\"}",
+          "legendFormat": "{{queue}} / archived (DLQ)"
+        }
+      ],
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 4 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "showPoints": "never",
+            "fillOpacity": 15,
+            "stacking": { "mode": "none" }
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": "archived.*" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.fillOpacity", "value": 30 }
+            ]
+          },
+          {
+            "matcher": { "id": "byRegexp", "options": "retry.*" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Task Failures",
+      "datasource": { "type": "loki", "uid": "${logdatasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"xyzmed-worker\"} |= \"task failed\" | json | line_format \"[{{.task}}] {{.error}}\""
+        }
+      ],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ]
+}

@@ -1,0 +1,112 @@
+{
+  "title": "XYZMed - Logs",
+  "uid": "xyzmed-logs",
+  "schemaVersion": 39,
+  "version": 3,
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "15s",
+  "templating": {
+    "list": [
+      {
+        "name": "loki",
+        "label": "Loki",
+        "type": "datasource",
+        "query": "loki",
+        "refresh": 1,
+        "hide": 0
+      },
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "custom",
+        "query": "xyzmed-api,xyzmed-worker",
+        "options": [
+          {"selected": true,  "text": "xyzmed-api",    "value": "xyzmed-api"},
+          {"selected": false, "text": "xyzmed-worker", "value": "xyzmed-worker"}
+        ],
+        "current": {"selected": true, "text": "xyzmed-api", "value": "xyzmed-api"},
+        "hide": 0,
+        "multi": false
+      },
+      {
+        "name": "level",
+        "label": "Level",
+        "type": "custom",
+        "query": ".*,INFO,WARN,ERROR,DEBUG",
+        "options": [
+          {"selected": true,  "text": "All",   "value": ".*"},
+          {"selected": false, "text": "INFO",  "value": "INFO"},
+          {"selected": false, "text": "WARN",  "value": "WARN"},
+          {"selected": false, "text": "ERROR", "value": "ERROR"},
+          {"selected": false, "text": "DEBUG", "value": "DEBUG"}
+        ],
+        "current": {"selected": true, "text": "All", "value": ".*"},
+        "hide": 0,
+        "multi": false
+      },
+      {
+        "name": "search",
+        "label": "Search",
+        "type": "textbox",
+        "current": {"value": ""},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Log Volume by Severity",
+      "datasource": { "type": "loki", "uid": "${loki}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (level) (rate({service_name=\"$service\"} |~ \"(?i)${search}\" | level=~\"(?i)$level\" [1m]))",
+          "legendFormat": "{{level}}"
+        }
+      ],
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineInterpolation": "linear",
+            "showPoints": "never",
+            "fillOpacity": 10
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "logs",
+      "title": "All Logs",
+      "datasource": { "type": "loki", "uid": "${loki}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"$service\"} |~ \"(?i)${search}\" | level=~\"(?i)$level\" | line_format `{{if .task}}[{{.task}}] {{if .to}}{{.topic}} → {{.to}}{{else if .phone}}{{.topic}} → {{.phone}}{{else if .action}}{{.action}} {{.resource_type}}/{{.resource_id}}{{end}} ({{.elapsed}}){{else}}{{if .method}}{{.method}} {{.path}} → {{.status}} ({{.latency}}){{else}}{{.message}}{{end}}{{end}}`"
+        }
+      ],
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 5 },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": false,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none"
+      }
+    }
+  ]
+}

@@ -1,0 +1,319 @@
+{
+  "title": "XYZMed - Containers",
+  "uid": "xyzmed-containers",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "15s",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "refresh": 1,
+        "hide": 2
+      },
+      {
+        "name": "container",
+        "label": "Container",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(container_cpu_usage_seconds_total{name!=\"\"}, name)",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".+",
+        "sort": 1,
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "CPU Usage %",
+      "description": "CPU cores consumed as a percentage of one core. Values >100 mean the container is using more than one full core.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(container_cpu_usage_seconds_total{name=~\"$container\"}[2m]) * 100",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineInterpolation": "linear", "showPoints": "never", "fillOpacity": 10 },
+          "unit": "percent"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "CPU Throttling %",
+      "description": "% of CPU scheduling periods where the container was throttled. High throttling means you need to raise CPU limits.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(container_cpu_cfs_throttled_periods_total{name=~\"$container\"}[2m]) / rate(container_cpu_cfs_periods_total{name=~\"$container\"}[2m]) * 100",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineInterpolation": "linear", "showPoints": "never", "fillOpacity": 10 },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 25 },
+              { "color": "red", "value": 50 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Memory Usage",
+      "description": "Working set bytes (RSS + cache that cannot be evicted). Most relevant memory signal.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "container_memory_working_set_bytes{name=~\"$container\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineInterpolation": "linear", "showPoints": "never", "fillOpacity": 10 },
+          "unit": "bytes"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Memory RSS",
+      "description": "Anonymous RSS (heap + stack). Excludes cache. A rising trend here means a memory leak.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "container_memory_rss{name=~\"$container\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineInterpolation": "linear", "showPoints": "never", "fillOpacity": 10 },
+          "unit": "bytes"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Network I/O",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(container_network_receive_bytes_total{name=~\"$container\"}[2m])",
+          "legendFormat": "{{name}} rx"
+        },
+        {
+          "refId": "B",
+          "expr": "rate(container_network_transmit_bytes_total{name=~\"$container\"}[2m])",
+          "legendFormat": "{{name}} tx"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineInterpolation": "linear", "showPoints": "never", "fillOpacity": 5 },
+          "unit": "Bps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Disk I/O",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(container_fs_reads_bytes_total{name=~\"$container\"}[2m])",
+          "legendFormat": "{{name}} read"
+        },
+        {
+          "refId": "B",
+          "expr": "rate(container_fs_writes_bytes_total{name=~\"$container\"}[2m])",
+          "legendFormat": "{{name}} write"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineInterpolation": "linear", "showPoints": "never", "fillOpacity": 5 },
+          "unit": "Bps"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "bargauge",
+      "title": "Disk Usage per Container",
+      "description": "Space consumed by each container's writable layer on the host filesystem.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "container_fs_usage_bytes{name=~\"$container\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "valueMode": "color",
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 524288000 },
+              { "color": "red", "value": 1073741824 }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "OOM Kill Events",
+      "description": "Container OOM kills since startup. Any non-zero value needs immediate attention.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "container_oom_events_total{name=~\"$container\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 32 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Network Errors",
+      "description": "Cumulative dropped/errored packets per container.",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "container_network_receive_errors_total{name=~\"$container\"} + container_network_transmit_errors_total{name=~\"$container\"}",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 32 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ]
+}
