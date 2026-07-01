@@ -71,13 +71,12 @@ All primary keys are UUID v7 (time-ordered). Use `uuid.NewV7()`.
 
 ## Skill Guide
 
-### context7 (library docs): ALWAYS use before implementing against a library
+### context7 (library docs): use only if instructed for implementing against a library
 
 Before using any library, framework, or SDK, call:
+
 1. `mcp__plugin_context7_context7__resolve-library-id` to find the library.
 2. `mcp__plugin_context7_context7__query-docs` to fetch current docs.
-
-Do not rely on training-data memory for library APIs.
 
 ### code-review-graph (code navigation): install once per clone
 
@@ -87,6 +86,7 @@ code-review-graph install
 ```
 
 This adds ~30 MCP tools to Claude Code. Rules:
+
 - Before reading large codebases, use `query_graph_tool` or `semantic_search_nodes_tool` to locate relevant nodes. Only open source files when the graph query identifies something worth inspecting.
 - Before any review, run `detect_changes_tool` to get the blast radius of changed files.
 - Keep `docs/ARCHITECTURE.md` updated when adding new packages or changing boundaries.
@@ -107,8 +107,8 @@ Run `/code-review` before any merge. Use `--fix` to apply findings.
 ### superpowers (use sparingly)
 
 Invoke `superpowers:*` skills ONLY when:
-- The user explicitly asks (e.g. "use brainstorming", "write a plan", "debug this systematically").
-- The task involves new infrastructure, a multi-system integration, or an architectural decision.
+
+- The user explicitly asks (e.g. "use superpowers:brainstorming to discuss this feature", "debug this systematically using superpowers").
 
 Do NOT auto-trigger brainstorming, writing-plans, systematic-debugging, or TDD on routine feature work.
 
